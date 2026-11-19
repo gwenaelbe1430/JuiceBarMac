@@ -50,8 +50,8 @@ Inspired by [JuiceBar for Windows](https://github.com/maciejmyron-cloud/juicebar
 Requires only the macOS Command Line Tools (`swiftc`):
 
 ```bash
-git clone https://github.com/gwenaelbe1430/juicebar-macos.git
-cd juicebar-macos
+git clone https://github.com/gwenaelbe1430/JuiceBarMac.git
+cd JuiceBarMac
 make install
 open /Applications/JuiceBar.app
 ```

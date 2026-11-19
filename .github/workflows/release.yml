@@ -5,6 +5,7 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Universal macOS App Bundle
+      - name: Build Universal macOS App Bundle (Apple Silicon + Intel)
         run: |
           mkdir -p JuiceBar.app/Contents/MacOS JuiceBar.app/Contents/Resources
           cp Info.plist JuiceBar.app/Contents/Info.plist
@@ -25,15 +26,18 @@ jobs:
           rm JuiceBar.app/Contents/MacOS/JuiceBar-arm64 JuiceBar.app/Contents/MacOS/JuiceBar-x86_64
           codesign --force --deep --sign - JuiceBar.app
           ditto -c -k --sequesterRsrc --keepParent JuiceBar.app JuiceBar-macOS-universal.zip
+          shasum -a 256 JuiceBar-macOS-universal.zip > JuiceBar-macOS-universal.zip.sha256
 
       - uses: actions/upload-artifact@v4
         with:
           name: JuiceBar-macOS
-          path: JuiceBar-macOS-universal.zip
+          path: |
+            JuiceBar-macOS-universal.zip
+            JuiceBar-macOS-universal.zip.sha256
 
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -43,4 +47,20 @@ jobs:
           name: JuiceBar-macOS
       - uses: softprops/action-gh-release@v2
         with:
-          files: JuiceBar-macOS-universal.zip
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
+          name: "JuiceBar for macOS ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}"
+          body: |
+            ## JuiceBar for macOS 🔋🍎
+            Native macOS menu bar wireless battery monitor for mice, keyboards, headsets, and controllers, each displayed in its maker's iconic brand color.
+
+            ### 📦 Download & Install
+            1. Download **`JuiceBar-macOS-universal.zip`** below (Universal binary for Apple Silicon M1/M2/M3/M4 & Intel Macs, macOS 13.0+).
+            2. Unzip and drag **`JuiceBar.app`** to your `/Applications` folder.
+            3. Since the app is open-source and ad-hoc signed, bypass macOS Gatekeeper on first launch by running in Terminal:
+               ```bash
+               xattr -cr /Applications/JuiceBar.app
+               open /Applications/JuiceBar.app
+               ```
+          files: |
+            JuiceBar-macOS-universal.zip
+            JuiceBar-macOS-universal.zip.sha256
