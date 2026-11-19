@@ -1,0 +1,46 @@
+name: Build & Release JuiceBar for macOS
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Universal macOS App Bundle
+        run: |
+          mkdir -p JuiceBar.app/Contents/MacOS JuiceBar.app/Contents/Resources
+          cp Info.plist JuiceBar.app/Contents/Info.plist
+          swiftc -O -target arm64-apple-macosx13.0 src/main.swift -o JuiceBar.app/Contents/MacOS/JuiceBar-arm64
+          swiftc -O -target x86_64-apple-macosx13.0 src/main.swift -o JuiceBar.app/Contents/MacOS/JuiceBar-x86_64
+          lipo -create -output JuiceBar.app/Contents/MacOS/JuiceBar JuiceBar.app/Contents/MacOS/JuiceBar-arm64 JuiceBar.app/Contents/MacOS/JuiceBar-x86_64
+          rm JuiceBar.app/Contents/MacOS/JuiceBar-arm64 JuiceBar.app/Contents/MacOS/JuiceBar-x86_64
+          codesign --force --deep --sign - JuiceBar.app
+          ditto -c -k --sequesterRsrc --keepParent JuiceBar.app JuiceBar-macOS-universal.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JuiceBar-macOS
+          path: JuiceBar-macOS-universal.zip
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: JuiceBar-macOS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: JuiceBar-macOS-universal.zip
